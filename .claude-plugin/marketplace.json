@@ -1,0 +1,6 @@
+{
+  "name": "dycor",
+  "owner": { "name": "Dylan Correia Lopes" },
+  "metadata": { "description": "Mods Claude Code de Dylan Correia Lopes" },
+  "plugins": [{ "name": "turn-diff", "source": "./" }]
+}
