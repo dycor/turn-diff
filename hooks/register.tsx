@@ -5,6 +5,78 @@ import type { FileDiff, FileStat, ScopeOption, Turn, View } from '../types'
 
 const DIFF_BUDGET = 90_000
 
+const plural = (count: number) => (count > 1 ? 's' : '')
+
+const MESSAGES = {
+  en: {
+    noRepo: 'no git repo',
+    noRepoToast: 'turn-diff: no git repo, inactive',
+    applyFailed: 'git apply failed',
+    lastReply: 'Last reply',
+    uncommitted: 'Uncommitted',
+    unstaged: 'Unstaged',
+    staged: 'Staged',
+    committed: 'Committed',
+    branch: 'Branch',
+    continued: '(continued)',
+    commandDescription: 'Changes in this session, per reply',
+    scopeUnavailable: 'Scope unavailable.',
+    paneTitle: 'Changes',
+    paneNotPlaced: (reason: string) => `turn-diff: pane not placed (${reason})`,
+    error: (error: string) => `turn-diff: ${error}`,
+    paneOpened: 'Changes opened.',
+    filesChanged: (count: number) => `${count} file${plural(count)} changed`,
+    undone: ' · undone',
+    undo: 'Undo ↺',
+    redo: 'Redo ↻',
+    showChanges: 'Show changes',
+    openOnDesktop: 'Open this pane from the desktop.',
+    noChanges: 'No changes.',
+    noTextDiff: 'No text diff (binary or too large).',
+  },
+  fr: {
+    noRepo: 'pas de repo git',
+    noRepoToast: 'turn-diff : pas de repo git, inactif',
+    applyFailed: 'git apply a échoué',
+    lastReply: 'Dernière réponse',
+    uncommitted: 'Non validées',
+    unstaged: 'Non indexés',
+    staged: 'Indexés',
+    committed: 'Validé',
+    branch: 'Branche',
+    continued: '(suite)',
+    commandDescription: 'Modifications de cette session, par réponse',
+    scopeUnavailable: 'Portée indisponible.',
+    paneTitle: 'Modifications',
+    paneNotPlaced: (reason: string) => `turn-diff : panneau non placé (${reason})`,
+    error: (error: string) => `turn-diff : ${error}`,
+    paneOpened: 'Modifications ouvertes.',
+    filesChanged: (count: number) => `${count} fichier${plural(count)} modifié${plural(count)}`,
+    undone: ' · annulé',
+    undo: 'Annuler ↺',
+    redo: 'Rétablir ↻',
+    showChanges: 'Afficher les modifications',
+    openOnDesktop: 'Ouvre ce panneau depuis le desktop.',
+    noChanges: 'Aucune modification.',
+    noTextDiff: 'Pas de diff texte (binaire ou trop gros).',
+  },
+}
+
+let t = MESSAGES.en
+
+async function systemLanguage($: EngineInterface) {
+  const fromEnv = (await $.env.get('LC_ALL')) || (await $.env.get('LC_MESSAGES')) || (await $.env.get('LANG'))
+  if (fromEnv) return fromEnv
+  const mac = await $.process.run(['defaults', 'read', '-g', 'AppleLanguages']).catch(() => null)
+  return mac?.stdout ?? ''
+}
+
+async function detectMessages($: EngineInterface) {
+  const { language } = await $.settings.read()
+  const wanted = typeof language === 'string' && language ? language : await systemLanguage($)
+  return /^\W*fr/i.test(wanted) ? MESSAGES.fr : MESSAGES.en
+}
+
 type Repo = { root: string; index: string }
 type GitOptions = { realIndex?: boolean; stdin?: string }
 type Range = { from: string; to: string }
@@ -31,7 +103,7 @@ async function dropIndex($: EngineInterface) {
 }
 
 async function git($: EngineInterface, args: string[], options: GitOptions = {}) {
-  if (!repo) return { ok: false, out: '', err: 'pas de repo git' }
+  if (!repo) return { ok: false, out: '', err: t.noRepo }
   const run = await $.process.run(['git', ...args], {
     cwd: repo.root,
     env: options.realIndex ? {} : { GIT_INDEX_FILE: repo.index },
@@ -92,7 +164,7 @@ async function applyDiff($: EngineInterface, range: Range, isReverse: boolean, p
   if (!patch.ok) return patch.err
   if (!patch.out) return ''
   const applied = await git($, ['apply', ...(isReverse ? ['-R'] : [])], { stdin: patch.out })
-  return applied.ok ? '' : applied.err || 'git apply a échoué'
+  return applied.ok ? '' : applied.err || t.applyFailed
 }
 
 async function setStaged($: EngineInterface, path: string, isStaged: boolean) {
@@ -110,16 +182,16 @@ async function scopeOptions($: EngineInterface, turns: Turn[]): Promise<ScopeOpt
   const [last, ...older] = [...turns].reverse()
   const commits = (await git($, ['log', '-20', '--format=%h%x09%s'])).out.split('\n').filter(Boolean)
   return [
-    ...(last ? [{ value: `turn:${last.n}`, label: 'Dernière réponse' }] : []),
+    ...(last ? [{ value: `turn:${last.n}`, label: t.lastReply }] : []),
     ...older.map(turn => ({ value: `turn:${turn.n}`, label: `T${turn.n} · ${turn.label}` })),
-    { value: 'uncommitted', label: 'Non validées' },
-    { value: 'unstaged', label: 'Non indexés' },
-    { value: 'staged', label: 'Indexés' },
+    { value: 'uncommitted', label: t.uncommitted },
+    { value: 'unstaged', label: t.unstaged },
+    { value: 'staged', label: t.staged },
     ...commits.map(line => {
       const [sha = '', subject = ''] = line.split('\t')
-      return { value: `commit:${sha}`, label: `Validé · ${sha} ${subject}`.slice(0, 80) }
+      return { value: `commit:${sha}`, label: `${t.committed} · ${sha} ${subject}`.slice(0, 80) }
     }),
-    { value: 'branch', label: `Branche (${await baseBranch($)})` },
+    { value: 'branch', label: `${t.branch} (${await baseBranch($)})` },
   ]
 }
 
@@ -157,17 +229,16 @@ const turns = atom({ plugin: 'turn-diff', key: 'turns' } as const, [])
 const view = atom({ plugin: 'turn-diff', key: 'view' } as const, EMPTY_VIEW)
 const cards = atom({ plugin: 'turn-diff', key: 'cards' } as const, 0)
 
-const label = (text: string) => text.trim().split('\n')[0]?.slice(0, 60) || '(suite)'
+const label = (text: string) => text.trim().split('\n')[0]?.slice(0, 60) || t.continued
 const total = (files: FileStat[], side: 'added' | 'removed') => files.reduce((sum, file) => sum + file[side], 0)
-const plural = (count: number) => (count > 1 ? 's' : '')
-
 let isReady = false
 
 async function ensureReady($: EngineInterface) {
   if (isReady) return true
+  t = await detectMessages($)
   isReady = await initRepo($)
   if (isReady) {
-    await $.command.register({ name: 'turn-diff', description: 'Modifications de cette session, par réponse' })
+    await $.command.register({ name: 'turn-diff', description: t.commandDescription })
   }
   return isReady
 }
@@ -178,7 +249,7 @@ async function loadView($: EngineInterface, scope?: string, focusPath?: string) 
   const options = await scopeOptions($, list)
   const range = await scopeRange($, wanted, list)
   if (!range) {
-    await update($, view, () => ({ ...EMPTY_VIEW, scope: wanted, options, error: 'Portée indisponible.' }))
+    await update($, view, () => ({ ...EMPTY_VIEW, scope: wanted, options, error: t.scopeUnavailable }))
     return
   }
   const files = await numstat($, range)
@@ -188,8 +259,8 @@ async function loadView($: EngineInterface, scope?: string, focusPath?: string) 
 
 async function openPane($: EngineInterface, scope: string, focusPath?: string) {
   await loadView($, scope, focusPath)
-  const opened = await $.ui.open({ id: PANE, title: 'Modifications' })
-  if (!opened.isPlaced) $.ui.toast(`turn-diff : panneau non placé (${opened.reason})`)
+  const opened = await $.ui.open({ id: PANE, title: t.paneTitle })
+  if (!opened.isPlaced) $.ui.toast(t.paneNotPlaced(opened.reason))
 }
 
 async function toggleFile($: EngineInterface, path: string) {
@@ -210,7 +281,7 @@ async function fileAction($: EngineInterface, path: string, action: 'stage' | 'u
   const current = await read($, view)
   const error =
     action === 'revert' ? await applyDiff($, current, true, path) : await setStaged($, path, action === 'stage')
-  if (error) $.ui.toast(`turn-diff : ${error}`)
+  if (error) $.ui.toast(t.error(error))
   await loadView($)
 }
 
@@ -219,7 +290,7 @@ async function toggleRevert($: EngineInterface, n: number) {
   if (!turn) return
   const error = await applyDiff($, turn, !turn.isReverted)
   if (error) {
-    $.ui.toast(`turn-diff : ${error}`)
+    $.ui.toast(t.error(error))
     return
   }
   await update($, turns, list => list.map(one => (one.n === n ? { ...one, isReverted: !turn.isReverted } : one)))
@@ -232,7 +303,7 @@ export const register: Register = on => {
   let lastNewMessage: string | null = null
 
   on('session.start', async ($, e, next) => {
-    if (!(await ensureReady($))) $.ui.toast('turn-diff : pas de repo git, inactif')
+    if (!(await ensureReady($))) $.ui.toast(t.noRepoToast)
     return next(e)
   })
 
@@ -273,7 +344,7 @@ export const register: Register = on => {
   on('command.run', { command: 'turn-diff' }, async $ => {
     const last = (await read($, turns)).at(-1)
     await openPane($, last ? `turn:${last.n}` : 'uncommitted')
-    return { text: 'Modifications ouvertes.' }
+    return { text: t.paneOpened }
   })
 
   on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
@@ -295,8 +366,8 @@ export const register: Register = on => {
           <Box flexDirection="row" justifyContent="space-between" alignItems="center">
             <Box flexDirection="column">
               <Text bold dimColor={turn.isReverted}>
-                {count} fichier{plural(count)} modifié{plural(count)}
-                {turn.isReverted ? ' · annulé' : ''}
+                {t.filesChanged(count)}
+                {turn.isReverted ? t.undone : ''}
               </Text>
               <Text>
                 <Text color="diffAdded">+{total(turn.files, 'added')}</Text>{' '}
@@ -306,12 +377,12 @@ export const register: Register = on => {
             <Box flexDirection="row" gap={1}>
               <Button
                 key={`undo-${turn.n}`}
-                label={turn.isReverted ? 'Rétablir ↻' : 'Annuler ↺'}
+                label={turn.isReverted ? t.redo : t.undo}
                 onPress={() => toggleRevert($, turn.n)}
               />
               <Button
                 key={`show-${turn.n}`}
-                label="Afficher les modifications"
+                label={t.showChanges}
                 onPress={() => openPane($, `turn:${turn.n}`)}
               />
             </Box>
@@ -335,7 +406,7 @@ export const register: Register = on => {
     const current = await read($, view)
     if (e.surface === 'mobile') {
       const { Text } = $.ui.resolve(e)
-      return <Text dimColor>Ouvre ce panneau depuis le desktop.</Text>
+      return <Text dimColor>{t.openOnDesktop}</Text>
     }
 
     const { Box, Text, Button, Code, Select } = $.ui.resolve(e)
@@ -352,7 +423,7 @@ export const register: Register = on => {
           <Button key="refresh" label="↻" onPress={() => loadView($)} />
         </Box>
         {current.error ? <Text color="error">{current.error}</Text> : null}
-        {!current.error && current.files.length === 0 ? <Text dimColor>Aucune modification.</Text> : null}
+        {!current.error && current.files.length === 0 ? <Text dimColor>{t.noChanges}</Text> : null}
         {current.files.map(file => {
           const shown = current.diffs.find(one => one.path === file.path)
           return (
@@ -376,7 +447,7 @@ export const register: Register = on => {
                 shown.diff ? (
                   <Code source={shown.diff} format="diff" path={file.path} />
                 ) : (
-                  <Text dimColor>Pas de diff texte (binaire ou trop gros).</Text>
+                  <Text dimColor>{t.noTextDiff}</Text>
                 )
               ) : null}
             </Box>

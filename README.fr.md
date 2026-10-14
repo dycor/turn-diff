@@ -18,6 +18,16 @@ Réponds `y` pour ajouter la marketplace, puis choisis la portée utilisateur (E
 
 Le mod ne s'active que dans un repo git ; ailleurs il affiche `turn-diff : pas de repo git, inactif` et ne fait rien.
 
+## Langue
+
+Le mod parle anglais ou français, choisi dans cet ordre :
+
+1. le réglage `language` de Claude Code (`"language": "french"` dans `~/.claude/settings.json`),
+2. la variable d'environnement `LC_ALL`, `LC_MESSAGES` ou `LANG`,
+3. sur macOS, la langue du système.
+
+Toute autre langue que le français donne l'anglais.
+
 ## Exemples
 
 ### Une carte sous chaque réponse qui modifie des fichiers
@@ -25,15 +35,15 @@ Le mod ne s'active que dans un repo git ; ailleurs il affiche `turn-diff : pas d
 Prompt : *« rajoute 7 console log dans 5 fichiers différents »*. Sous la dernière réponse de Claude :
 
 ```
-╭────────────────────────────────────────────────────────────────────────╮
+╭─────────────────────────────────────────────────────────────────────────────╮
 │ 5 fichiers modifiés                [Annuler ↺] [Afficher les modifications] │
-│ +7 -0                                                                  │
-│ packages/acl/src/subjects.ts +2 -0                                     │
-│ packages/acl/src/enums/pages.enum.ts +2 -0                             │
-│ packages/acl/src/permissions/admin-roles.ts +1 -0                      │
-│ packages/acl/src/permissions/roles.ts +1 -0                            │
-│ packages/acl/src/permissions/feature-flag-permissions.ts +1 -0         │
-╰────────────────────────────────────────────────────────────────────────╯
+│ +7 -0                                                                       │
+│ packages/acl/src/subjects.ts +2 -0                                          │
+│ packages/acl/src/enums/pages.enum.ts +2 -0                                  │
+│ packages/acl/src/permissions/admin-roles.ts +1 -0                           │
+│ packages/acl/src/permissions/roles.ts +1 -0                                 │
+│ packages/acl/src/permissions/feature-flag-permissions.ts +1 -0              │
+╰─────────────────────────────────────────────────────────────────────────────╯
 ```
 
 - **Annuler ↺** retire les changements de ce prompt seulement (les prompts précédents et suivants restent). La carte passe en `5 fichiers modifiés · annulé` et le bouton devient **Rétablir ↻**.
@@ -83,7 +93,6 @@ Clique sur un fichier pour plier / déplier son diff.
 - **Annuler** échoue proprement (toast avec l'erreur git) si un prompt suivant a modifié les mêmes lignes.
 - Les fichiers ignorés par `.gitignore` ne sont pas suivis.
 - Les diffs très gros sont tronqués dans le panneau ; les fichiers binaires n'ont pas de diff texte.
-- Interface en français.
 
 ## Développement
 

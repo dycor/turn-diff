@@ -6,9 +6,11 @@ const ran = (stdout: string) => ({
   value: { exitCode: 0, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
 })
 
-function fakeEngine(on: On, trees: string[]) {
+function fakeEngine(on: On, trees: string[], language?: string) {
   const calls: string[][] = []
   on('session.id', () => ({ value: 'sess' }))
+  on('settings.read', () => ({ value: language ? { language } : {} }))
+  on('env.get', () => ({ value: undefined }))
   on('command.register', () => ({ value: { command: 'turn-diff' } }))
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
   on('turn.start', (_$, e) => ({ turnId: e.turnId }))
@@ -51,9 +53,23 @@ test('the card lands on the last reply of the turn and undoes then redoes it', a
   const last = await $.ui.mount({ ...reply, requestId: 'm2', props: { text: 'done', isFirstOfReply: false } })
   await $.turn.complete({ ...DONE, turnId: 't1' })
 
+  expect((await last.find({ key: 'undo-1' }))?.props.label).toBe('Undo ↺')
   await last.press({ key: 'undo-1' })
   await last.press({ key: 'undo-1' })
 
   const applies = calls.filter(call => call[0] === 'apply')
   expect(applies).toEqual([['apply', '-R', 'stdin:PATCH'], ['apply', 'stdin:PATCH']])
+})
+
+test('the card follows the language set in Claude Code', async ($, on) => {
+  fakeEngine(on, ['tree-a', 'tree-b'], 'français')
+  const reply = { plugin: 'turn-diff', surface: 'desktop', component: 'AssistantMessage' } as const
+
+  await $.session.start({ cwd: '/repo', surface: 'desktop', isInteractive: true })
+  await $.turn.start({ text: 'edit a.ts', turnId: 't1' })
+  const card = await $.ui.mount({ ...reply, requestId: 'm1', props: { text: 'done', isFirstOfReply: true } })
+  await $.turn.complete({ ...DONE, turnId: 't1' })
+
+  expect((await card.find({ key: 'undo-1' }))?.props.label).toBe('Annuler ↺')
+  expect((await card.find({ key: 'show-1' }))?.props.label).toBe('Afficher les modifications')
 })

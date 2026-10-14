@@ -6,8 +6,6 @@ A Claude Code mod that shows, prompt by prompt, what Claude changed in your git 
 
 The desktop Changes pane shows the whole uncommitted diff at once. turn-diff splits that diff by reply: every prompt that touches files gets its own card, with its files, its `+/-` counts and an Undo button.
 
-> The mod's interface is in French for now. The examples below show the labels as they appear, with their English meaning.
-
 ## Install
 
 In a `claude` session started from a terminal:
@@ -18,7 +16,17 @@ In a `claude` session started from a terminal:
 
 Answer `y` to add the marketplace, then pick the user scope (Enter). The mod is active right away, and in every new session after that — desktop Code tab sessions included.
 
-The mod only runs inside a git repo; elsewhere it shows `turn-diff : pas de repo git, inactif` ("no git repo, inactive") and does nothing.
+The mod only runs inside a git repo; elsewhere it shows `turn-diff: no git repo, inactive` and does nothing.
+
+## Language
+
+The mod speaks English or French, picked from, in order:
+
+1. the `language` setting of Claude Code (`"language": "french"` in `~/.claude/settings.json`),
+2. the `LC_ALL`, `LC_MESSAGES` or `LANG` environment variable,
+3. on macOS, the system language.
+
+Anything other than French falls back to English.
 
 ## Examples
 
@@ -27,31 +35,29 @@ The mod only runs inside a git repo; elsewhere it shows `turn-diff : pas de repo
 Prompt: *"add 7 console logs across 5 different files"*. Under Claude's last reply:
 
 ```
-╭────────────────────────────────────────────────────────────────────────╮
-│ 5 fichiers modifiés                [Annuler ↺] [Afficher les modifications] │
-│ +7 -0                                                                  │
-│ packages/acl/src/subjects.ts +2 -0                                     │
-│ packages/acl/src/enums/pages.enum.ts +2 -0                             │
-│ packages/acl/src/permissions/admin-roles.ts +1 -0                      │
-│ packages/acl/src/permissions/roles.ts +1 -0                            │
-│ packages/acl/src/permissions/feature-flag-permissions.ts +1 -0         │
-╰────────────────────────────────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────────────────────────────╮
+│ 5 files changed                                  [Undo ↺] [Show changes] │
+│ +7 -0                                                                    │
+│ packages/acl/src/subjects.ts +2 -0                                       │
+│ packages/acl/src/enums/pages.enum.ts +2 -0                               │
+│ packages/acl/src/permissions/admin-roles.ts +1 -0                        │
+│ packages/acl/src/permissions/roles.ts +1 -0                              │
+│ packages/acl/src/permissions/feature-flag-permissions.ts +1 -0           │
+╰──────────────────────────────────────────────────────────────────────────╯
 ```
 
-*5 files changed · [Undo ↺] [Show changes]*
-
-- **Annuler ↺** (Undo) reverts this prompt's changes only; earlier and later prompts stay. The card turns into `5 fichiers modifiés · annulé` (undone) and the button becomes **Rétablir ↻** (Redo).
+- **Undo ↺** reverts this prompt's changes only; earlier and later prompts stay. The card turns into `5 files changed · undone` and the button becomes **Redo ↻**.
 - Clicking a file opens the pane straight on its diff.
 - A prompt that changes nothing (a plain question) gets no card.
 
 Changes made through Bash (`sed`, scripts, codemods…) count too: turn-diff compares the repo before and after each prompt, not just Edit/Write calls.
 
-### The "Modifications" pane
+### The "Changes" pane
 
-**Afficher les modifications** (Show changes) or the `/turn-diff` command opens a pane:
+**Show changes** or the `/turn-diff` command opens a pane:
 
 ```
-[Dernière réponse ▾]  +7  -0  [↻]
+[Last reply ▾]  +7  -0  [↻]
 
 ▾ packages/acl/src/subjects.ts +2 -0                         [Revert]
     @@ -42,3 +42,5 @@ export const subjects = …
@@ -64,14 +70,14 @@ Changes made through Bash (`sed`, scripts, codemods…) count too: turn-diff com
 
 The menu at the top picks what the diff covers:
 
-| Scope | Label in the menu | Compares |
-| --- | --- | --- |
-| Last reply, any earlier prompt | `Dernière réponse`, `T1 · <prompt>`, `T2 · …` | one prompt's changes in this session |
-| Uncommitted | `Non validées` | `HEAD` ↔ working tree |
-| Unstaged | `Non indexés` | index ↔ working tree (**Stage** / **Revert** per file) |
-| Staged | `Indexés` | `HEAD` ↔ index (**Unstage** per file) |
-| A commit | `Validé · <sha> <message>` | one of the last 20 commits |
-| Branch | `Branche (origin/main)` | merge-base with the base branch ↔ working tree |
+| Scope | Compares |
+| --- | --- |
+| `Last reply`, `T1 · <prompt>`, `T2 · …` | one prompt's changes in this session |
+| `Uncommitted` | `HEAD` ↔ working tree |
+| `Unstaged` | index ↔ working tree (**Stage** / **Revert** per file) |
+| `Staged` | `HEAD` ↔ index (**Unstage** per file) |
+| `Committed · <sha> <message>` | one of the last 20 commits |
+| `Branch (origin/main)` | merge-base with the base branch ↔ working tree |
 
 Click a file to fold or unfold its diff.
 

@@ -1,6 +1,6 @@
 {
   "name": "turn-diff",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Per-prompt diff card under each reply (undo / redo) and a diff pane by prompt, commit or branch",
   "author": { "name": "Dylan Correia Lopes", "url": "https://github.com/dycor" },
   "repository": "https://github.com/dycor/turn-diff",
