@@ -1,26 +1,30 @@
 # turn-diff
 
-Mod Claude Code : voir, prompt par prompt, ce que Claude a modifié dans ton repo git — et l'annuler en un clic.
+**English** · [Français](README.fr.md)
 
-Le panneau Changes du desktop montre tout le diff non commité d'un bloc. turn-diff découpe ce diff par réponse : chaque prompt qui touche des fichiers obtient sa carte, avec ses fichiers, ses `+/-` et un bouton Annuler.
+A Claude Code mod that shows, prompt by prompt, what Claude changed in your git repo — and undoes it in one click.
 
-## Installation
+The desktop Changes pane shows the whole uncommitted diff at once. turn-diff splits that diff by reply: every prompt that touches files gets its own card, with its files, its `+/-` counts and an Undo button.
 
-Dans une session `claude` lancée depuis un terminal :
+> The mod's interface is in French for now. The examples below show the labels as they appear, with their English meaning.
+
+## Install
+
+In a `claude` session started from a terminal:
 
 ```
 /plugin install turn-diff --marketplace dycor/turn-diff
 ```
 
-Réponds `y` pour ajouter la marketplace, puis choisis la portée utilisateur (Entrée). Le mod est actif tout de suite, et dans chaque nouvelle session ensuite — y compris les sessions de l'onglet Code du desktop.
+Answer `y` to add the marketplace, then pick the user scope (Enter). The mod is active right away, and in every new session after that — desktop Code tab sessions included.
 
-Le mod ne s'active que dans un repo git ; ailleurs il affiche `turn-diff : pas de repo git, inactif` et ne fait rien.
+The mod only runs inside a git repo; elsewhere it shows `turn-diff : pas de repo git, inactif` ("no git repo, inactive") and does nothing.
 
-## Exemples
+## Examples
 
-### Une carte sous chaque réponse qui modifie des fichiers
+### A card under every reply that changes files
 
-Prompt : *« rajoute 7 console log dans 5 fichiers différents »*. Sous la dernière réponse de Claude :
+Prompt: *"add 7 console logs across 5 different files"*. Under Claude's last reply:
 
 ```
 ╭────────────────────────────────────────────────────────────────────────╮
@@ -34,15 +38,17 @@ Prompt : *« rajoute 7 console log dans 5 fichiers différents »*. Sous la dern
 ╰────────────────────────────────────────────────────────────────────────╯
 ```
 
-- **Annuler ↺** retire les changements de ce prompt seulement (les prompts précédents et suivants restent). La carte passe en `5 fichiers modifiés · annulé` et le bouton devient **Rétablir ↻**.
-- Un clic sur un fichier ouvre le panneau directement sur son diff.
-- Un prompt qui ne modifie rien (une simple question) n'a pas de carte.
+*5 files changed · [Undo ↺] [Show changes]*
 
-Les modifications faites via Bash (`sed`, scripts, codemods…) comptent aussi : turn-diff compare l'état du repo avant et après chaque prompt, pas seulement les appels à Edit/Write.
+- **Annuler ↺** (Undo) reverts this prompt's changes only; earlier and later prompts stay. The card turns into `5 fichiers modifiés · annulé` (undone) and the button becomes **Rétablir ↻** (Redo).
+- Clicking a file opens the pane straight on its diff.
+- A prompt that changes nothing (a plain question) gets no card.
 
-### Le panneau « Modifications »
+Changes made through Bash (`sed`, scripts, codemods…) count too: turn-diff compares the repo before and after each prompt, not just Edit/Write calls.
 
-**Afficher les modifications** ou la commande `/turn-diff` ouvre un panneau :
+### The "Modifications" pane
+
+**Afficher les modifications** (Show changes) or the `/turn-diff` command opens a pane:
 
 ```
 [Dernière réponse ▾]  +7  -0  [↻]
@@ -56,40 +62,39 @@ Les modifications faites via Bash (`sed`, scripts, codemods…) comptent aussi :
 ▸ packages/acl/src/permissions/admin-roles.ts +1 -0          [Revert]
 ```
 
-Le menu en haut change la portée du diff :
+The menu at the top picks what the diff covers:
 
-| Portée | Ce qui est comparé |
-| --- | --- |
-| Dernière réponse, `T1 · <prompt>`, `T2 · …` | les changements d'un prompt de la session |
-| Non validées | `HEAD` ↔ arbre de travail |
-| Non indexés | index ↔ arbre de travail (boutons **Stage** / **Revert** par fichier) |
-| Indexés | `HEAD` ↔ index (bouton **Unstage** par fichier) |
-| `Validé · <sha> <message>` | un des 20 derniers commits |
-| Branche (`origin/main`) | merge-base avec la branche de base ↔ arbre de travail |
+| Scope | Label in the menu | Compares |
+| --- | --- | --- |
+| Last reply, any earlier prompt | `Dernière réponse`, `T1 · <prompt>`, `T2 · …` | one prompt's changes in this session |
+| Uncommitted | `Non validées` | `HEAD` ↔ working tree |
+| Unstaged | `Non indexés` | index ↔ working tree (**Stage** / **Revert** per file) |
+| Staged | `Indexés` | `HEAD` ↔ index (**Unstage** per file) |
+| A commit | `Validé · <sha> <message>` | one of the last 20 commits |
+| Branch | `Branche (origin/main)` | merge-base with the base branch ↔ working tree |
 
-Clique sur un fichier pour plier / déplier son diff.
+Click a file to fold or unfold its diff.
 
-## Comment ça marche
+## How it works
 
-- Au début et à la fin de chaque prompt, turn-diff prend un instantané de l'arbre de travail (`git add -A` + `git write-tree`) dans un index git temporaire (`GIT_INDEX_FILE`, sous `.git/`). Ton vrai index n'est jamais touché, rien n'est commité.
-- La carte d'un prompt est le diff entre ces deux arbres. **Annuler** applique ce diff à l'envers avec `git apply -R` ; **Rétablir** le réapplique.
-- L'index temporaire est supprimé à la fin de la session.
+- At the start and end of each prompt, turn-diff snapshots the working tree (`git add -A` + `git write-tree`) into a temporary git index (`GIT_INDEX_FILE`, under `.git/`). Your real index is never touched and nothing is committed.
+- A prompt's card is the diff between those two trees. **Undo** applies it in reverse with `git apply -R`; **Redo** applies it again.
+- The temporary index is deleted when the session ends.
 
-## Limites
+## Limits
 
-- Les cartes vivent le temps de la session : elles disparaissent au redémarrage.
-- **Annuler** échoue proprement (toast avec l'erreur git) si un prompt suivant a modifié les mêmes lignes.
-- Les fichiers ignorés par `.gitignore` ne sont pas suivis.
-- Les diffs très gros sont tronqués dans le panneau ; les fichiers binaires n'ont pas de diff texte.
-- Interface en français.
+- Cards last for the session: they are gone after a restart.
+- **Undo** fails cleanly (a toast with the git error) if a later prompt changed the same lines.
+- Files ignored by `.gitignore` are not tracked.
+- Very large diffs are truncated in the pane; binary files have no text diff.
 
-## Développement
+## Development
 
 ```bash
 claude plugin validate .
 claude plugin test .
 ```
 
-## Licence
+## License
 
 MIT

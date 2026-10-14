@@ -1,7 +1,7 @@
 {
   "name": "turn-diff",
   "version": "0.3.0",
-  "description": "Carte des fichiers modifiés sous chaque réponse (annuler / rétablir) et panneau de diff par prompt, commit ou branche",
+  "description": "Per-prompt diff card under each reply (undo / redo) and a diff pane by prompt, commit or branch",
   "author": { "name": "Dylan Correia Lopes", "url": "https://github.com/dycor" },
   "repository": "https://github.com/dycor/turn-diff",
   "license": "MIT",
